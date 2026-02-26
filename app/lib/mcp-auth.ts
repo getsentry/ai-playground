@@ -48,6 +48,33 @@ interface StoredSession {
 }
 
 // ---------------------------------------------------------------------------
+// App URL helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve the canonical app URL.
+ * Priority: NEXT_PUBLIC_APP_URL > VERCEL_PROJECT_PRODUCTION_URL > localhost
+ *
+ * Handles values with or without a protocol prefix, e.g.
+ *   "https://ai-playground.sentry.dev"  → used as-is
+ *   "ai-playground.sentry.dev"          → prefixed with https://
+ */
+export function getAppUrl(): string {
+  const raw = process.env.NEXT_PUBLIC_APP_URL;
+  if (raw) {
+    // Accept bare hostnames (no protocol) — prefix with https://
+    if (raw.startsWith("http://") || raw.startsWith("https://")) {
+      return raw.replace(/\/+$/, ""); // strip trailing slashes
+    }
+    return `https://${raw.replace(/\/+$/, "")}`;
+  }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+  return "http://localhost:3000";
+}
+
+// ---------------------------------------------------------------------------
 // In-memory store  (swap for Redis / DB in production)
 // ---------------------------------------------------------------------------
 
@@ -173,11 +200,11 @@ export function createOAuthProvider(
 
   return {
     get redirectUrl() {
-      return new URL("/api/auth/callback", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").toString();
+      return new URL("/api/auth/callback", getAppUrl()).toString();
     },
 
     get clientMetadata() {
-      const redirectUri = new URL("/api/auth/callback", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").toString();
+      const redirectUri = new URL("/api/auth/callback", getAppUrl()).toString();
       return {
         redirect_uris: [redirectUri],
         client_name: "Sentry AI Playground",

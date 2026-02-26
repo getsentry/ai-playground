@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
-import { beginOAuthFlow } from "@/app/lib/mcp-auth";
+import { beginOAuthFlow, getAppUrl } from "@/app/lib/mcp-auth";
 import { cookies } from "next/headers";
 
 export async function GET() {
   try {
     // Generate a session id
     const sessionId = crypto.randomUUID();
-    const appUrl =
-      process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const callbackUrl = `${appUrl}/api/auth/callback`;
+    const callbackUrl = `${getAppUrl()}/api/auth/callback`;
 
     const authorizationUrl = await beginOAuthFlow(sessionId, callbackUrl);
 
@@ -25,8 +23,10 @@ export async function GET() {
     return NextResponse.redirect(authorizationUrl);
   } catch (error) {
     console.error("OAuth connect error:", error);
+    const message =
+      error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Failed to start OAuth flow" },
+      { error: "Failed to start OAuth flow", detail: message },
       { status: 500 }
     );
   }
