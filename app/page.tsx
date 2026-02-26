@@ -234,6 +234,18 @@ export default function Home() {
     }
   };
 
+  const handleDisconnect = async () => {
+    try {
+      await fetch("/api/auth/disconnect", { method: "POST" });
+    } catch {
+      // ignore
+    }
+    setIsConnected(false);
+    setIsChatOpen(false);
+    setMessages([]);
+    setInput("");
+  };
+
   const openChatWithPrompt = useCallback(
     (prompt: string) => {
       if (!isConnected || isBusy) return;
@@ -341,10 +353,14 @@ export default function Home() {
                   Checking connection...
                 </button>
               ) : isConnected ? (
-                <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-900/50 bg-emerald-950/20 px-4 py-2 text-sm text-emerald-400">
-                  <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                  Connected to Sentry
-                </div>
+                <button
+                  onClick={handleDisconnect}
+                  className="group inline-flex items-center gap-2 rounded-lg border border-emerald-900/50 bg-emerald-950/20 px-4 py-2 text-sm text-emerald-400 transition-colors hover:border-red-900/50 hover:bg-red-950/20 hover:text-red-400"
+                >
+                  <div className="h-2 w-2 rounded-full bg-emerald-500 transition-colors group-hover:bg-red-500" />
+                  <span className="group-hover:hidden">Connected to Sentry</span>
+                  <span className="hidden group-hover:inline">Disconnect</span>
+                </button>
               ) : isConnecting ? (
                 <button
                   disabled
