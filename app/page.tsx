@@ -150,16 +150,33 @@ export default function Home() {
     };
     checkAuth();
 
-    const onMessage = (event: MessageEvent) => {
-      if (event.data?.type === "sentry-oauth-result") {
+    // Handler shared by both postMessage and BroadcastChannel
+    const handleOAuthResult = (data: { type?: string; success?: boolean }) => {
+      if (data?.type === "sentry-oauth-result") {
         setIsConnecting(false);
-        if (event.data.success) {
+        if (data.success) {
           setIsConnected(true);
         }
       }
     };
+
+    // Strategy 1: postMessage from popup (works if window.opener survived)
+    const onMessage = (event: MessageEvent) => handleOAuthResult(event.data);
     window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
+
+    // Strategy 2: BroadcastChannel (same-origin, works even without opener)
+    let bc: BroadcastChannel | undefined;
+    try {
+      bc = new BroadcastChannel("sentry-oauth");
+      bc.onmessage = (event: MessageEvent) => handleOAuthResult(event.data);
+    } catch {
+      // BroadcastChannel not supported — postMessage + poll fallback
+    }
+
+    return () => {
+      window.removeEventListener("message", onMessage);
+      bc?.close();
+    };
   }, []);
 
   // Auto-scroll chat
@@ -180,8 +197,8 @@ export default function Home() {
 
   const openConnectPopup = () => {
     setIsConnecting(true);
-    const w = 700;
-    const h = 750;
+    const w = 900;
+    const h = 800;
     const left = window.screenX + (window.outerWidth - w) / 2;
     const top = window.screenY + (window.outerHeight - h) / 2;
     const popup = window.open(
@@ -190,19 +207,28 @@ export default function Home() {
       `width=${w},height=${h},left=${left},top=${top},popup=yes`
     );
 
-    // Poll to detect if the user closes the popup without completing OAuth
+    // Poll for popup close — when it closes, check auth status via API.
+    // This is more reliable than postMessage alone because cross-origin
+    // redirects (our app → Sentry → our callback) can clear window.opener
+    // in some browsers, preventing the postMessage from reaching us.
     if (popup) {
       const timer = setInterval(() => {
         if (popup.closed) {
           clearInterval(timer);
-          // Give the postMessage a moment to arrive before resetting
-          setTimeout(() => {
-            setIsConnecting((prev) => {
-              // Only reset if we're still in the connecting state
-              // (i.e. postMessage didn't already handle it)
-              return prev ? false : prev;
-            });
-          }, 500);
+          // Check auth status after a short delay to let the cookie settle
+          setTimeout(async () => {
+            try {
+              const res = await fetch("/api/auth/status");
+              const data = await res.json();
+              if (data.connected) {
+                setIsConnected(true);
+              }
+            } catch {
+              // ignore
+            } finally {
+              setIsConnecting(false);
+            }
+          }, 300);
         }
       }, 500);
     }

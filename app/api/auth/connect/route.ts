@@ -1,18 +1,23 @@
 import { NextResponse } from "next/server";
-import { beginOAuthFlow, getAppUrl } from "@/app/lib/mcp-auth";
+import {
+  beginOAuthFlow,
+  getAppUrl,
+  encryptSession,
+  COOKIE_NAME,
+} from "@/app/lib/mcp-auth";
 import { cookies } from "next/headers";
 
 export async function GET() {
   try {
-    // Generate a session id
-    const sessionId = crypto.randomUUID();
     const callbackUrl = `${getAppUrl()}/api/auth/callback`;
 
-    const authorizationUrl = await beginOAuthFlow(sessionId, callbackUrl);
+    const { authorizationUrl, session } = await beginOAuthFlow(callbackUrl);
 
-    // Set session cookie
+    // Store the OAuth state (code verifier, client registration) in an
+    // encrypted cookie so it survives across serverless invocations.
     const cookieStore = await cookies();
-    cookieStore.set("mcp_session", sessionId, {
+    const encrypted = await encryptSession(session);
+    cookieStore.set(COOKIE_NAME, encrypted, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
