@@ -61,8 +61,8 @@ const FEATURED_PROMPTS: PromptCard[] = [
     docUrl: "https://docs.sentry.io/product/releases/",
   },
   {
-    prompt: "Which issues are affecting the most users right now?",
-    docUrl: "https://docs.sentry.io/product/issues/",
+    prompt: "Which AI models in use have the longest run times?",
+    docUrl: "https://docs.sentry.io/product/insights/llm-monitoring/",
   },
 ];
 
@@ -120,7 +120,8 @@ export default function Home() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const desktopMessagesEndRef = useRef<HTMLDivElement>(null);
+  const mobileMessagesEndRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
 
   const { messages, sendMessage, status, stop, error, setMessages } = useChat({
@@ -179,10 +180,11 @@ export default function Home() {
     };
   }, []);
 
-  // Auto-scroll chat
+  // Auto-scroll chat — triggers on new messages AND during streaming
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    desktopMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    mobileMessagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, status]);
 
   // Focus chat input when sheet opens
   useEffect(() => {
@@ -197,8 +199,8 @@ export default function Home() {
 
   const openConnectPopup = () => {
     setIsConnecting(true);
-    const w = 900;
-    const h = 800;
+    const w = 1100;
+    const h = 850;
     const left = window.screenX + (window.outerWidth - w) / 2;
     const top = window.screenY + (window.outerHeight - h) / 2;
     const popup = window.open(
@@ -421,7 +423,7 @@ export default function Home() {
         </div>
       )}
 
-      <div ref={messagesEndRef} />
+      {/* scroll anchor — ref attached per-panel below */}
     </div>
   );
 
@@ -476,7 +478,11 @@ export default function Home() {
         className="relative z-10 flex min-w-0 flex-1 snap-y snap-mandatory flex-col overflow-y-auto scroll-smooth transition-all duration-350 ease-in-out"
       >
         {/* Top bar with chat toggle */}
-        <header className="sticky top-0 z-20 flex items-center justify-end px-4 py-3 md:px-6 md:py-4">
+        <header className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 md:px-6 md:py-4">
+          <div className="flex items-center gap-2">
+            <img src="/sentryglyph.png" alt="Sentry" className="h-5 w-5" />
+            <span className="text-sm font-medium text-muted">Sentry AI Playground</span>
+          </div>
           {isConnected && (
             <button
               onClick={toggleChat}
@@ -505,7 +511,7 @@ export default function Home() {
         <div className="flex min-h-[calc(100vh-3.5rem)] snap-start flex-col items-center px-4 md:px-6">
           <div className="flex w-full max-w-6xl flex-1 flex-col items-center justify-center">
             <h1 className="mb-4 text-center text-4xl font-bold tracking-tight text-foreground sm:text-6xl md:text-7xl lg:text-8xl">
-              Talk Sentry to me<span className="text-accent">...</span>
+              Talk Sentry to me<span className="text-accent">.</span>
             </h1>
 
             {/* Connect button */}
@@ -691,6 +697,7 @@ export default function Home() {
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-5 py-6">
             {chatMessages}
+            <div ref={desktopMessagesEndRef} />
           </div>
 
           {/* Input */}
@@ -733,6 +740,7 @@ export default function Home() {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-4">
           {chatMessages}
+          <div ref={mobileMessagesEndRef} />
         </div>
 
         {/* Input */}
