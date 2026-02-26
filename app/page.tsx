@@ -117,6 +117,7 @@ const MORE_PROMPTS: PromptCard[] = [
 
 export default function Home() {
   const [isConnected, setIsConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -150,8 +151,11 @@ export default function Home() {
     checkAuth();
 
     const onMessage = (event: MessageEvent) => {
-      if (event.data?.type === "sentry-oauth-result" && event.data.success) {
-        setIsConnected(true);
+      if (event.data?.type === "sentry-oauth-result") {
+        setIsConnecting(false);
+        if (event.data.success) {
+          setIsConnected(true);
+        }
       }
     };
     window.addEventListener("message", onMessage);
@@ -175,15 +179,33 @@ export default function Home() {
   // -------------------------------------------------------------------
 
   const openConnectPopup = () => {
-    const w = 500;
-    const h = 700;
+    setIsConnecting(true);
+    const w = 700;
+    const h = 750;
     const left = window.screenX + (window.outerWidth - w) / 2;
     const top = window.screenY + (window.outerHeight - h) / 2;
-    window.open(
+    const popup = window.open(
       "/api/auth/connect",
       "sentry-oauth",
       `width=${w},height=${h},left=${left},top=${top},popup=yes`
     );
+
+    // Poll to detect if the user closes the popup without completing OAuth
+    if (popup) {
+      const timer = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(timer);
+          // Give the postMessage a moment to arrive before resetting
+          setTimeout(() => {
+            setIsConnecting((prev) => {
+              // Only reset if we're still in the connecting state
+              // (i.e. postMessage didn't already handle it)
+              return prev ? false : prev;
+            });
+          }, 500);
+        }
+      }, 500);
+    }
   };
 
   const openChatWithPrompt = useCallback(
@@ -229,20 +251,8 @@ export default function Home() {
     }
   };
 
-  // -------------------------------------------------------------------
-  // Loading
-  // -------------------------------------------------------------------
-  if (isCheckingAuth) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex items-center gap-2 text-muted">
-          <span className="loading-dot">.</span>
-          <span className="loading-dot">.</span>
-          <span className="loading-dot">.</span>
-        </div>
-      </div>
-    );
-  }
+  // No separate loading screen — the main page renders immediately.
+  // The connect button is disabled while auth status is being checked.
 
   // -------------------------------------------------------------------
   // Render
@@ -297,7 +307,44 @@ export default function Home() {
 
             {/* Connect button */}
             <div className="mb-10">
-              {!isConnected ? (
+              {isCheckingAuth ? (
+                <button
+                  disabled
+                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-6 py-3 text-sm font-medium text-muted opacity-60"
+                >
+                  Checking connection...
+                </button>
+              ) : isConnected ? (
+                <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-900/50 bg-emerald-950/20 px-4 py-2 text-sm text-emerald-400">
+                  <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                  Connected to Sentry
+                </div>
+              ) : isConnecting ? (
+                <button
+                  disabled
+                  className="inline-flex items-center gap-2 rounded-lg border border-accent-dim/50 bg-accent-dim/10 px-6 py-3 text-sm font-medium text-accent transition-colors"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    className="animate-spin"
+                  >
+                    <circle
+                      cx="8"
+                      cy="8"
+                      r="6"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeDasharray="28"
+                      strokeDashoffset="8"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  Connecting...
+                </button>
+              ) : (
                 <button
                   onClick={openConnectPopup}
                   className="inline-flex items-center gap-2 rounded-lg bg-accent-dim px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-accent"
@@ -316,11 +363,6 @@ export default function Home() {
                   </svg>
                   Connect to Sentry
                 </button>
-              ) : (
-                <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-900/50 bg-emerald-950/20 px-4 py-2 text-sm text-emerald-400">
-                  <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                  Connected to Sentry
-                </div>
               )}
             </div>
 
