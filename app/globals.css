@@ -1,26 +1,365 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0a0a0a;
+  --foreground: #e0e0e0;
+  --muted: #888888;
+  --border: #1e1e1e;
+  --card: #111111;
+  --card-hover: #1a1a1a;
+  --accent: #c084fc;
+  --accent-dim: #7c3aed;
+  --chat-width: 42rem;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-card: var(--card);
+  --color-card-hover: var(--card-hover);
+  --color-accent: var(--accent);
+  --color-accent-dim: var(--accent-dim);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-mono), "Geist Mono", "SF Mono", "Fira Code",
+    "Fira Mono", "Roboto Mono", "Courier New", monospace;
+  overflow-x: hidden;
+}
+
+/* ------------------------------------------------------------------ */
+/* Background: dot grid + radial glow (applied to <body> so nothing   */
+/* clips them)                                                         */
+/* ------------------------------------------------------------------ */
+
+/* Dot grid */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.04) 1px,
+    transparent 1px
+  );
+  background-size: 24px 24px;
+}
+
+/* Soft purple glow behind the hero area */
+body::after {
+  content: "";
+  position: fixed;
+  z-index: 0;
+  pointer-events: none;
+  top: 15%;
+  left: 50%;
+  width: 900px;
+  height: 600px;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(124, 58, 237, 0.12) 0%,
+    rgba(124, 58, 237, 0.05) 35%,
+    transparent 65%
+  );
+  filter: blur(80px);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* ------------------------------------------------------------------ */
+/* Bounce arrow hint                                                   */
+/* ------------------------------------------------------------------ */
+
+@keyframes bounce-down {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(6px);
+  }
+}
+
+.bounce-arrow {
+  animation: bounce-down 2s ease-in-out infinite;
+}
+
+/* ------------------------------------------------------------------ */
+/* Tool call spinner                                                    */
+/* ------------------------------------------------------------------ */
+
+@keyframes tool-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.tool-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #333;
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: tool-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Markdown content in chat  (GitHub Flavored Markdown)                */
+/* ------------------------------------------------------------------ */
+
+/* Headings */
+.chat-markdown h1,
+.chat-markdown h2,
+.chat-markdown h3,
+.chat-markdown h4,
+.chat-markdown h5,
+.chat-markdown h6 {
+  font-weight: 600;
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
+}
+
+.chat-markdown h1 {
+  font-size: 1.35rem;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid #1e1e1e;
+}
+.chat-markdown h2 {
+  font-size: 1.2rem;
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid #1e1e1e;
+}
+.chat-markdown h3 {
+  font-size: 1.05rem;
+}
+.chat-markdown h4 {
+  font-size: 1rem;
+}
+.chat-markdown h5 {
+  font-size: 0.875rem;
+}
+.chat-markdown h6 {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* Paragraphs */
+.chat-markdown p {
+  margin-bottom: 0.75em;
+  line-height: 1.7;
+}
+
+/* Links */
+.chat-markdown a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.chat-markdown a:hover {
+  opacity: 0.8;
+}
+
+/* Bold / italic / strikethrough */
+.chat-markdown strong {
+  font-weight: 700;
+  color: var(--foreground);
+}
+.chat-markdown em {
+  font-style: italic;
+}
+.chat-markdown del {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+/* Lists */
+.chat-markdown ul,
+.chat-markdown ol {
+  margin-left: 1.5em;
+  margin-bottom: 0.75em;
+}
+.chat-markdown ul {
+  list-style-type: disc;
+}
+.chat-markdown ol {
+  list-style-type: decimal;
+}
+.chat-markdown li {
+  margin-bottom: 0.3em;
+  line-height: 1.6;
+}
+.chat-markdown li > ul,
+.chat-markdown li > ol {
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
+
+/* Task lists (GFM) */
+.chat-markdown ul:has(> li > input[type="checkbox"]) {
+  list-style: none;
+  margin-left: 0;
+}
+.chat-markdown li > input[type="checkbox"] {
+  margin-right: 0.5em;
+  accent-color: var(--accent);
+  vertical-align: middle;
+  pointer-events: none;
+}
+
+/* Inline code */
+.chat-markdown code {
+  background: #1e1e1e;
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-size: 0.875em;
+  border: 1px solid #2a2a2a;
+}
+
+/* Code blocks */
+.chat-markdown pre {
+  background: #141414;
+  padding: 1em;
+  border-radius: 6px;
+  border: 1px solid #1e1e1e;
+  overflow-x: auto;
+  margin-bottom: 0.75em;
+}
+.chat-markdown pre code {
+  background: transparent;
+  padding: 0;
+  border: none;
+  font-size: 0.85em;
+  line-height: 1.6;
+}
+
+/* Blockquotes */
+.chat-markdown blockquote {
+  border-left: 3px solid var(--accent-dim);
+  padding-left: 1em;
+  color: var(--muted);
+  margin-bottom: 0.75em;
+  margin-left: 0;
+}
+.chat-markdown blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+/* Horizontal rules */
+.chat-markdown hr {
+  border: none;
+  border-top: 1px solid #1e1e1e;
+  margin: 1.5em 0;
+}
+
+/* Tables (GFM) */
+.chat-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1em;
+  font-size: 0.85em;
+  overflow-x: auto;
+  display: block;
+}
+.chat-markdown thead {
+  border-bottom: 2px solid #2a2a2a;
+}
+.chat-markdown th {
+  font-weight: 600;
+  text-align: left;
+  padding: 0.5em 0.75em;
+  color: var(--foreground);
+  white-space: nowrap;
+}
+.chat-markdown td {
+  padding: 0.45em 0.75em;
+  border-top: 1px solid #1e1e1e;
+  color: var(--muted);
+}
+.chat-markdown tbody tr:hover {
+  background: #141414;
+}
+
+/* Images */
+.chat-markdown img {
+  max-width: 100%;
+  border-radius: 6px;
+  margin: 0.75em 0;
+}
+
+/* Footnotes (GFM) */
+.chat-markdown .footnotes {
+  margin-top: 2em;
+  padding-top: 1em;
+  border-top: 1px solid #1e1e1e;
+  font-size: 0.85em;
+  color: var(--muted);
+}
+.chat-markdown sup a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+/* Definition lists / details if nested */
+.chat-markdown details {
+  margin-bottom: 0.75em;
+}
+.chat-markdown summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------------ */
+/* Pulse animation for loading                                         */
+/* ------------------------------------------------------------------ */
+
+@keyframes pulse-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+.loading-dot:nth-child(1) {
+  animation: pulse-dot 1.4s infinite;
+  animation-delay: 0s;
+}
+.loading-dot:nth-child(2) {
+  animation: pulse-dot 1.4s infinite;
+  animation-delay: 0.2s;
+}
+.loading-dot:nth-child(3) {
+  animation: pulse-dot 1.4s infinite;
+  animation-delay: 0.4s;
 }
