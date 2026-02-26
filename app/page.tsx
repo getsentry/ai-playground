@@ -207,15 +207,10 @@ export default function Home() {
       `width=${w},height=${h},left=${left},top=${top},popup=yes`
     );
 
-    // Poll for popup close — when it closes, check auth status via API.
-    // This is more reliable than postMessage alone because cross-origin
-    // redirects (our app → Sentry → our callback) can clear window.opener
-    // in some browsers, preventing the postMessage from reaching us.
     if (popup) {
       const timer = setInterval(() => {
         if (popup.closed) {
           clearInterval(timer);
-          // Check auth status after a short delay to let the cookie settle
           setTimeout(async () => {
             try {
               const res = await fetch("/api/auth/status");
@@ -232,6 +227,18 @@ export default function Home() {
         }
       }, 500);
     }
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      await fetch("/api/auth/disconnect", { method: "POST" });
+    } catch {
+      // ignore
+    }
+    setIsConnected(false);
+    setIsChatOpen(false);
+    setMessages([]);
+    setInput("");
   };
 
   const openChatWithPrompt = useCallback(
@@ -277,33 +284,205 @@ export default function Home() {
     }
   };
 
-  // No separate loading screen — the main page renders immediately.
-  // The connect button is disabled while auth status is being checked.
-
   // -------------------------------------------------------------------
   // Render
   // -------------------------------------------------------------------
 
-  // Cards are disabled when not connected OR when the model is busy
   const cardsDisabled = !isConnected || isBusy;
+
+  // Shared chat messages JSX (used by both desktop and mobile)
+  const chatMessages = (
+    <div className="space-y-4">
+      {messages.map((message) => {
+        if (message.role === "user") {
+          return (
+            <div key={message.id} className="flex justify-end">
+              <div className="max-w-[85%] rounded-lg bg-accent-dim/20 px-4 py-3 text-foreground">
+                <div className="chat-markdown text-sm leading-relaxed">
+                  {message.parts.map((part, i) =>
+                    part.type === "text" ? (
+                      <ReactMarkdown key={i} remarkPlugins={[remarkGfm]}>
+                        {part.text}
+                      </ReactMarkdown>
+                    ) : null
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        const steps = splitIntoSteps(message.parts);
+
+        return steps.map((stepParts, stepIndex) => {
+          const hasContent = stepParts.some(
+            (p) =>
+              p.type === "text" ||
+              p.type === "reasoning" ||
+              p.type === "dynamic-tool"
+          );
+          if (!hasContent) return null;
+
+          const textContent = stepParts
+            .filter(
+              (p): p is Extract<typeof p, { type: "text" }> =>
+                p.type === "text"
+            )
+            .map((p) => p.text)
+            .join("\n\n");
+
+          return (
+            <div
+              key={`${message.id}-step-${stepIndex}`}
+              className="flex justify-start"
+            >
+              <div className="group/msg relative max-w-[85%] rounded-lg bg-card px-4 py-3 text-foreground">
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="text-xs font-medium text-accent">
+                    sentry
+                  </span>
+                  {textContent && <CopyButton text={textContent} />}
+                </div>
+                <div className="chat-markdown text-sm leading-relaxed">
+                  {stepParts.map((part, index) => {
+                    if (part.type === "text") {
+                      return (
+                        <ReactMarkdown
+                          key={index}
+                          remarkPlugins={[remarkGfm]}
+                        >
+                          {part.text}
+                        </ReactMarkdown>
+                      );
+                    }
+                    if (part.type === "reasoning") {
+                      return (
+                        <details
+                          key={index}
+                          className="my-2 rounded border border-border bg-background p-2"
+                        >
+                          <summary className="cursor-pointer text-xs text-muted">
+                            Reasoning
+                          </summary>
+                          <pre className="mt-2 whitespace-pre-wrap text-xs text-muted">
+                            {part.text}
+                          </pre>
+                        </details>
+                      );
+                    }
+                    if (part.type === "dynamic-tool") {
+                      return (
+                        <ToolCallBlock
+                          key={index}
+                          toolName={part.toolName}
+                          state={part.state}
+                          input={
+                            "input" in part ? part.input : undefined
+                          }
+                          output={
+                            "output" in part ? part.output : undefined
+                          }
+                          errorText={
+                            "errorText" in part
+                              ? (part.errorText as string)
+                              : undefined
+                          }
+                        />
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
+              </div>
+            </div>
+          );
+        });
+      })}
+
+      {/* Loading */}
+      {isBusy &&
+        messages.length > 0 &&
+        messages[messages.length - 1]?.role === "user" && (
+          <div className="flex justify-start">
+            <div className="flex items-center gap-1 rounded-lg bg-card px-4 py-3 text-sm text-muted">
+              <span className="loading-dot">.</span>
+              <span className="loading-dot">.</span>
+              <span className="loading-dot">.</span>
+            </div>
+          </div>
+        )}
+
+      {/* Error */}
+      {error && (
+        <div className="flex justify-start">
+          <div className="rounded-lg border border-red-900/50 bg-red-950/20 px-4 py-3 text-sm text-red-400">
+            Error: {error.message || "Something went wrong."}
+          </div>
+        </div>
+      )}
+
+      <div ref={messagesEndRef} />
+    </div>
+  );
+
+  // Shared chat input JSX
+  const chatInput = (
+    <div className="border-t border-border px-4 py-3 md:px-5 md:py-4">
+      {isBusy ? (
+        <button
+          onClick={() => stop()}
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted transition-colors hover:border-red-900/50 hover:text-red-400"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="currentColor"
+          >
+            <rect x="2" y="2" width="10" height="10" rx="2" />
+          </svg>
+          Stop generating
+        </button>
+      ) : (
+        <form
+          onSubmit={handleChatSubmit}
+          className="flex items-center gap-3"
+        >
+          <input
+            ref={chatInputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask Sentry something..."
+            className="flex-1 rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground placeholder-muted outline-none transition-colors focus:border-accent-dim"
+          />
+          <button
+            type="submit"
+            disabled={!input.trim()}
+            className="rounded-lg bg-accent-dim px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-accent disabled:opacity-40 disabled:hover:bg-accent-dim"
+          >
+            Send
+          </button>
+        </form>
+      )}
+    </div>
+  );
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* ============================================================= */}
-      {/* Main content area — shrinks when chat opens                    */}
+      {/* Main content area — shrinks when chat opens (desktop)           */}
       {/* ============================================================= */}
       <div
         className="relative z-10 flex min-w-0 flex-1 snap-y snap-mandatory flex-col overflow-y-auto scroll-smooth transition-all duration-350 ease-in-out"
       >
         {/* Top bar with chat toggle */}
-        <header className="sticky top-0 z-20 flex items-center justify-end px-6 py-4">
+        <header className="sticky top-0 z-20 flex items-center justify-end px-4 py-3 md:px-6 md:py-4">
           {isConnected && (
             <button
               onClick={toggleChat}
               className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-muted transition-colors hover:border-accent-dim/50 hover:text-foreground"
               title={isChatOpen ? "Close chat" : "Open chat"}
             >
-              {/* Chat bubble icon */}
               <svg
                 width="20"
                 height="20"
@@ -322,17 +501,15 @@ export default function Home() {
 
         {/* =========================================================== */}
         {/* First page — hero, input, featured prompts, arrow            */}
-        {/* Uses min-h-screen minus the header so it fills one viewport  */}
         {/* =========================================================== */}
-        <div className="flex min-h-[calc(100vh-3.5rem)] snap-start flex-col items-center px-6">
-          {/* Center block */}
+        <div className="flex min-h-[calc(100vh-3.5rem)] snap-start flex-col items-center px-4 md:px-6">
           <div className="flex w-full max-w-6xl flex-1 flex-col items-center justify-center">
-            <h1 className="mb-4 text-center text-6xl font-bold tracking-tight text-foreground sm:text-7xl lg:text-8xl">
+            <h1 className="mb-4 text-center text-4xl font-bold tracking-tight text-foreground sm:text-6xl md:text-7xl lg:text-8xl">
               Talk Sentry to me<span className="text-accent">...</span>
             </h1>
 
             {/* Connect button */}
-            <div className="mb-10">
+            <div className="mb-8 md:mb-10">
               {isCheckingAuth ? (
                 <button
                   disabled
@@ -341,10 +518,14 @@ export default function Home() {
                   Checking connection...
                 </button>
               ) : isConnected ? (
-                <div className="inline-flex items-center gap-2 rounded-lg border border-emerald-900/50 bg-emerald-950/20 px-4 py-2 text-sm text-emerald-400">
-                  <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                  Connected to Sentry
-                </div>
+                <button
+                  onClick={handleDisconnect}
+                  className="group inline-flex items-center gap-2 rounded-lg border border-emerald-900/50 bg-emerald-950/20 px-4 py-2 text-sm text-emerald-400 transition-colors hover:border-red-900/50 hover:bg-red-950/20 hover:text-red-400"
+                >
+                  <div className="h-2 w-2 rounded-full bg-emerald-500 transition-colors group-hover:bg-red-500" />
+                  <span className="group-hover:hidden">Connected to Sentry</span>
+                  <span className="hidden group-hover:inline">Disconnect</span>
+                </button>
               ) : isConnecting ? (
                 <button
                   disabled
@@ -395,7 +576,7 @@ export default function Home() {
             {/* Input bar */}
             <form
               onSubmit={handleLandingSubmit}
-              className="mb-14 flex w-full max-w-2xl items-center gap-3"
+              className="mb-10 flex w-full max-w-2xl items-center gap-3 md:mb-14"
             >
               <input
                 value={input}
@@ -419,8 +600,8 @@ export default function Home() {
               </button>
             </form>
 
-            {/* Featured prompts — 5 across */}
-            <div className="grid w-full max-w-6xl grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            {/* Featured prompts */}
+            <div className="grid w-full max-w-6xl grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4 lg:grid-cols-5">
               {FEATURED_PROMPTS.map((card) => (
                 <PromptCardButton
                   key={card.prompt}
@@ -432,7 +613,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Scroll-down arrow — pinned to bottom of first page */}
+          {/* Scroll-down arrow */}
           <div className="flex flex-col items-center gap-1 pb-6 pt-4 text-muted/60">
             <span className="text-xs">more prompts</span>
             <svg
@@ -456,12 +637,12 @@ export default function Home() {
         {/* =========================================================== */}
         {/* Second page — prompt library                                 */}
         {/* =========================================================== */}
-        <div className="flex min-h-screen snap-start flex-col items-center justify-center px-6">
+        <div className="flex min-h-screen snap-start flex-col items-center justify-center px-4 md:px-6">
           <div className="w-full max-w-6xl">
-            <h2 className="mb-8 text-sm font-medium uppercase tracking-widest text-muted">
+            <h2 className="mb-6 text-sm font-medium uppercase tracking-widest text-muted md:mb-8">
               Prompt Library
             </h2>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4 lg:grid-cols-5">
               {MORE_PROMPTS.map((card) => (
                 <PromptCardButton
                   key={card.prompt}
@@ -476,13 +657,13 @@ export default function Home() {
       </div>
 
       {/* ============================================================= */}
-      {/* Chat panel — in-flow, pushes content left                      */}
+      {/* Desktop chat panel — in-flow, pushes content left              */}
+      {/* Hidden on mobile (md: and up only)                             */}
       {/* ============================================================= */}
       <div
         style={{ width: isChatOpen ? "42rem" : "0" }}
-        className="relative z-10 flex h-full flex-shrink-0 flex-col overflow-hidden border-l border-border bg-background transition-[width] duration-350 ease-in-out"
+        className="relative z-10 hidden h-full flex-shrink-0 flex-col overflow-hidden border-l border-border bg-background transition-[width] duration-350 ease-in-out md:flex"
       >
-        {/* Inner wrapper — always full width so contents don't reflow */}
         <div className="flex h-full w-[42rem] flex-col">
           {/* Header */}
           <header className="flex items-center justify-between border-b border-border px-5 py-4">
@@ -509,184 +690,53 @@ export default function Home() {
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-5 py-6">
-            <div className="space-y-4">
-              {messages.map((message) => {
-                if (message.role === "user") {
-                  return (
-                    <div key={message.id} className="flex justify-end">
-                      <div className="max-w-[85%] rounded-lg bg-accent-dim/20 px-4 py-3 text-foreground">
-                        <div className="chat-markdown text-sm leading-relaxed">
-                          {message.parts.map((part, i) =>
-                            part.type === "text" ? (
-                              <ReactMarkdown
-                                key={i}
-                                remarkPlugins={[remarkGfm]}
-                              >
-                                {part.text}
-                              </ReactMarkdown>
-                            ) : null
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-
-                // Assistant message — split into visual steps
-                const steps = splitIntoSteps(message.parts);
-
-                return steps.map((stepParts, stepIndex) => {
-                  // Skip steps that have no visible content
-                  const hasContent = stepParts.some(
-                    (p) =>
-                      p.type === "text" ||
-                      p.type === "reasoning" ||
-                      p.type === "dynamic-tool"
-                  );
-                  if (!hasContent) return null;
-
-                  const textContent = stepParts
-                    .filter(
-                      (p): p is Extract<typeof p, { type: "text" }> =>
-                        p.type === "text"
-                    )
-                    .map((p) => p.text)
-                    .join("\n\n");
-
-                  return (
-                    <div
-                      key={`${message.id}-step-${stepIndex}`}
-                      className="flex justify-start"
-                    >
-                      <div className="group/msg relative max-w-[85%] rounded-lg bg-card px-4 py-3 text-foreground">
-                        <div className="mb-1.5 flex items-center justify-between">
-                          <span className="text-xs font-medium text-accent">
-                            sentry
-                          </span>
-                          {textContent && <CopyButton text={textContent} />}
-                        </div>
-                        <div className="chat-markdown text-sm leading-relaxed">
-                          {stepParts.map((part, index) => {
-                            if (part.type === "text") {
-                              return (
-                                <ReactMarkdown
-                                  key={index}
-                                  remarkPlugins={[remarkGfm]}
-                                >
-                                  {part.text}
-                                </ReactMarkdown>
-                              );
-                            }
-                            if (part.type === "reasoning") {
-                              return (
-                                <details
-                                  key={index}
-                                  className="my-2 rounded border border-border bg-background p-2"
-                                >
-                                  <summary className="cursor-pointer text-xs text-muted">
-                                    Reasoning
-                                  </summary>
-                                  <pre className="mt-2 whitespace-pre-wrap text-xs text-muted">
-                                    {part.text}
-                                  </pre>
-                                </details>
-                              );
-                            }
-                            if (part.type === "dynamic-tool") {
-                              return (
-                                <ToolCallBlock
-                                  key={index}
-                                  toolName={part.toolName}
-                                  state={part.state}
-                                  input={
-                                    "input" in part ? part.input : undefined
-                                  }
-                                  output={
-                                    "output" in part ? part.output : undefined
-                                  }
-                                  errorText={
-                                    "errorText" in part
-                                      ? (part.errorText as string)
-                                      : undefined
-                                  }
-                                />
-                              );
-                            }
-                            return null;
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                });
-              })}
-
-              {/* Loading */}
-              {isBusy &&
-                messages.length > 0 &&
-                messages[messages.length - 1]?.role === "user" && (
-                  <div className="flex justify-start">
-                    <div className="flex items-center gap-1 rounded-lg bg-card px-4 py-3 text-sm text-muted">
-                      <span className="loading-dot">.</span>
-                      <span className="loading-dot">.</span>
-                      <span className="loading-dot">.</span>
-                    </div>
-                  </div>
-                )}
-
-              {/* Error */}
-              {error && (
-                <div className="flex justify-start">
-                  <div className="rounded-lg border border-red-900/50 bg-red-950/20 px-4 py-3 text-sm text-red-400">
-                    Error: {error.message || "Something went wrong."}
-                  </div>
-                </div>
-              )}
-
-              <div ref={messagesEndRef} />
-            </div>
+            {chatMessages}
           </div>
 
-          {/* Chat input + stop button */}
-          <div className="border-t border-border px-5 py-4">
-            {isBusy ? (
-              <button
-                onClick={() => stop()}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted transition-colors hover:border-red-900/50 hover:text-red-400"
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 14 14"
-                  fill="currentColor"
-                >
-                  <rect x="2" y="2" width="10" height="10" rx="2" />
-                </svg>
-                Stop generating
-              </button>
-            ) : (
-              <form
-                onSubmit={handleChatSubmit}
-                className="flex items-center gap-3"
-              >
-                <input
-                  ref={chatInputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask Sentry something..."
-                  className="flex-1 rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground placeholder-muted outline-none transition-colors focus:border-accent-dim"
-                />
-                <button
-                  type="submit"
-                  disabled={!input.trim()}
-                  className="rounded-lg bg-accent-dim px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-accent disabled:opacity-40 disabled:hover:bg-accent-dim"
-                >
-                  Send
-                </button>
-              </form>
-            )}
-          </div>
+          {/* Input */}
+          {chatInput}
         </div>
+      </div>
+
+      {/* ============================================================= */}
+      {/* Mobile chat sheet — full-screen overlay (below md)             */}
+      {/* ============================================================= */}
+      <div
+        className={`fixed inset-0 z-50 flex flex-col bg-background transition-transform duration-300 ease-in-out md:hidden ${
+          isChatOpen ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        {/* Header with back button */}
+        <header className="flex items-center justify-between border-b border-border px-4 py-3">
+          <button
+            onClick={toggleChat}
+            className="flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-foreground"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path
+                d="M10 3L5 8l5 5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Back
+          </button>
+          <span className="text-xs text-muted">Sentry MCP</span>
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-emerald-500" />
+            <span className="text-xs text-muted">Connected</span>
+          </div>
+        </header>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {chatMessages}
+        </div>
+
+        {/* Input */}
+        {chatInput}
       </div>
     </div>
   );
@@ -705,7 +755,6 @@ function CopyButton({ text }: { text: string }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback for older browsers
       const ta = document.createElement("textarea");
       ta.value = text;
       ta.style.position = "fixed";
@@ -792,13 +841,11 @@ function ToolCallBlock({
         ? `${toolName} — failed`
         : toolName;
 
-  // Build the expandable content
   const hasDetails = isDone || isError || input != null;
 
   return (
     <details className={`tool-call-block group my-2 rounded border border-border bg-background transition-opacity ${isDone ? "opacity-60" : ""}`}>
       <summary className="flex cursor-pointer list-none items-center gap-2.5 px-3 py-2.5 text-xs text-muted select-none [&::-webkit-details-marker]:hidden">
-        {/* Spinner or status dot */}
         {isRunning ? (
           <span className="tool-spinner" />
         ) : isError ? (
@@ -817,7 +864,6 @@ function ToolCallBlock({
 
         <span className="flex-1 truncate">{label}</span>
 
-        {/* Expand chevron */}
         {hasDetails && (
           <svg
             width="12"
@@ -892,9 +938,9 @@ function PromptCardButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="group flex min-h-[8rem] flex-col justify-between rounded-lg border border-border bg-card p-6 text-left transition-all hover:border-accent-dim/50 hover:bg-card-hover disabled:pointer-events-none disabled:opacity-40"
+      className="group flex min-h-[6rem] flex-col justify-between rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent-dim/50 hover:bg-card-hover disabled:pointer-events-none disabled:opacity-40 md:min-h-[8rem] md:p-6"
     >
-      <p className="mb-3 text-base leading-snug text-foreground group-hover:text-accent">
+      <p className="mb-2 text-sm leading-snug text-foreground group-hover:text-accent md:mb-3 md:text-base">
         {card.prompt}
       </p>
       {card.docUrl && (
