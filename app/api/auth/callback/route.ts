@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { handleOAuthCallback } from "@/app/lib/mcp-auth";
+import { handleOAuthCallback, getAppUrl } from "@/app/lib/mcp-auth";
 import { cookies } from "next/headers";
 
 /**
@@ -16,9 +16,7 @@ export async function GET(request: NextRequest) {
 
   if (sessionId && code) {
     try {
-      const appUrl =
-        process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-      const callbackUrl = `${appUrl}/api/auth/callback`;
+      const callbackUrl = `${getAppUrl()}/api/auth/callback`;
       await handleOAuthCallback(sessionId, code, callbackUrl);
       success = true;
     } catch (error) {

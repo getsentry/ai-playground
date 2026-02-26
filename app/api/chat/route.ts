@@ -8,6 +8,7 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { createMCPClient, type MCPClient } from "@ai-sdk/mcp";
 import { cookies } from "next/headers";
 import { getSession } from "@/app/lib/mcp-auth";
+import * as Sentry from "@sentry/nextjs";
 
 export const maxDuration = 60;
 
@@ -28,6 +29,9 @@ export async function POST(req: Request) {
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
+
+    // Link all AI spans in this request to the user's conversation
+    Sentry.setConversationId(sessionId!);
 
     const sentryMcpUrl =
       process.env.SENTRY_MCP_URL || "https://mcp.sentry.dev/mcp";
@@ -61,6 +65,7 @@ When answering questions:
       stopWhen: stepCountIs(5),
       experimental_telemetry: {
         isEnabled: true,
+        functionId: "sentry-mcp-chat",
         recordInputs: true,
         recordOutputs: true,
       },

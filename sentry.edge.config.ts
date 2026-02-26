@@ -13,6 +13,7 @@ Sentry.init({
     Sentry.vercelAIIntegration({
       recordInputs: true,
       recordOutputs: true,
+      force: true,
     }),
   ],
 
