@@ -45,8 +45,8 @@ interface PromptCard {
 
 const FEATURED_PROMPTS: PromptCard[] = [
   {
-    prompt: "Show me the top 5 issues in my environment and how to fix them",
-    docUrl: "https://docs.sentry.io/product/issues/",
+    prompt: "Use Seer to find the 5 most recent issues and fix them",
+    docUrl: "https://docs.sentry.io/product/issues/issue-details/seer/",
   },
   {
     prompt: "Show me the slowest database calls in my projects",
@@ -61,7 +61,7 @@ const FEATURED_PROMPTS: PromptCard[] = [
     docUrl: "https://docs.sentry.io/product/releases/",
   },
   {
-    prompt: "Which AI models in use have the longest run times?",
+    prompt: "Find poor AI Model performance across my projects",
     docUrl: "https://docs.sentry.io/product/insights/llm-monitoring/",
   },
 ];
@@ -480,13 +480,13 @@ export default function Home() {
         {/* Top bar with chat toggle */}
         <header className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 md:px-6 md:py-4">
           <div className="flex items-center gap-2">
-            <img src="/sentryglyph.png" alt="Sentry" className="h-5 w-5" />
-            <span className="text-sm font-medium text-muted">Sentry AI Playground</span>
+            <img src="/sentryglyph.png" alt="Sentry" className="h-6 w-6" />
+            <span className="text-base font-medium text-foreground font-mono">Sentry AI Playground</span>
           </div>
           {isConnected && (
             <button
               onClick={toggleChat}
-              className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-muted transition-colors hover:border-accent-dim/50 hover:text-foreground"
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-card text-foreground transition-colors hover:border-accent-dim/50 hover:text-accent"
               title={isChatOpen ? "Close chat" : "Open chat"}
             >
               <svg
@@ -509,113 +509,138 @@ export default function Home() {
         {/* First page — hero, input, featured prompts, arrow            */}
         {/* =========================================================== */}
         <div className="flex min-h-[calc(100vh-3.5rem)] snap-start flex-col items-center px-4 md:px-6">
-          <div className="flex w-full max-w-6xl flex-1 flex-col items-center justify-center">
+          <div className="flex w-full max-w-6xl flex-1 flex-col items-center pt-[15vh] md:justify-center md:pt-0">
             <h1 className="mb-4 text-center text-4xl font-bold tracking-tight text-foreground sm:text-6xl md:text-7xl lg:text-8xl">
               Talk Sentry to me<span className="text-accent">.</span>
             </h1>
+            <h2 className="mb-6 max-w-4xl text-center text-base text-muted sm:text-lg md:mb-8 md:text-xl lg:text-2xl">
+              Sentry knows a lot about debugging your applications. Seriously. It&apos;s a lot. Ask us about it.
+            </h2>
 
-            {/* Connect button */}
-            <div className="mb-8 md:mb-10">
-              {isCheckingAuth ? (
-                <button
-                  disabled
-                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-6 py-3 text-sm font-medium text-muted opacity-60"
-                >
-                  Checking connection...
-                </button>
-              ) : isConnected ? (
-                <button
-                  onClick={handleDisconnect}
-                  className="group inline-flex items-center gap-2 rounded-lg border border-emerald-900/50 bg-emerald-950/20 px-4 py-2 text-sm text-emerald-400 transition-colors hover:border-red-900/50 hover:bg-red-950/20 hover:text-red-400"
-                >
-                  <div className="h-2 w-2 rounded-full bg-emerald-500 transition-colors group-hover:bg-red-500" />
-                  <span className="group-hover:hidden">Connected to Sentry</span>
-                  <span className="hidden group-hover:inline">Disconnect</span>
-                </button>
-              ) : isConnecting ? (
-                <button
-                  disabled
-                  className="inline-flex items-center gap-2 rounded-lg border border-accent-dim/50 bg-accent-dim/10 px-6 py-3 text-sm font-medium text-accent transition-colors"
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    className="animate-spin"
+            {/* Not connected: show connect button / connecting spinner */}
+            {!isConnected && (
+              <div className="mb-8 md:mb-10">
+                {isCheckingAuth ? (
+                  <button
+                    disabled
+                    className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-6 py-3 text-sm font-medium text-muted opacity-60"
                   >
-                    <circle
-                      cx="8"
-                      cy="8"
-                      r="6"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeDasharray="28"
-                      strokeDashoffset="8"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  Connecting...
-                </button>
-              ) : (
-                <button
-                  onClick={openConnectPopup}
-                  className="inline-flex items-center gap-2 rounded-lg bg-accent-dim px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-accent"
-                >
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 16 16"
-                    fill="none"
-                    className="opacity-80"
+                    Checking connection...
+                  </button>
+                ) : isConnecting ? (
+                  <button
+                    disabled
+                    className="inline-flex items-center gap-2 rounded-lg border border-accent-dim/50 bg-accent-dim/10 px-6 py-3 text-sm font-medium text-accent transition-colors"
                   >
-                    <path
-                      d="M8 1a7 7 0 100 14A7 7 0 008 1zM6.5 5a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM5 9.5C5 8.67 6.34 8 8 8s3 .67 3 1.5V11H5V9.5z"
-                      fill="currentColor"
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      className="animate-spin"
+                    >
+                      <circle
+                        cx="8"
+                        cy="8"
+                        r="6"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeDasharray="28"
+                        strokeDashoffset="8"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    Connecting...
+                  </button>
+                ) : (
+                  <button
+                    onClick={openConnectPopup}
+                    className="inline-flex items-center gap-2 rounded-lg bg-accent-dim px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-accent"
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      className="opacity-80"
+                    >
+                      <path
+                        d="M8 1a7 7 0 100 14A7 7 0 008 1zM6.5 5a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM5 9.5C5 8.67 6.34 8 8 8s3 .67 3 1.5V11H5V9.5z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                    Connect to Sentry
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Connected: show input bar + status row */}
+            {isConnected && (
+              <div className="mb-10 w-full max-w-2xl md:mb-14">
+                <form
+                  onSubmit={handleLandingSubmit}
+                  className="flex items-center gap-3"
+                >
+                  <input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    disabled={isBusy}
+                    placeholder={
+                      isBusy
+                        ? "Waiting for response..."
+                        : "Ask Sentry anything..."
+                    }
+                    className="flex-1 rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground placeholder-muted outline-none transition-colors focus:border-accent-dim disabled:opacity-50"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!input.trim() || isBusy}
+                    className="rounded-lg bg-accent-dim px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-accent disabled:opacity-40 disabled:hover:bg-accent-dim"
+                  >
+                    Send
+                  </button>
+                </form>
+                <div className="mt-3 flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                    <span className="text-xs text-emerald-400">Connected to Sentry</span>
+                  </div>
+                  <button
+                    onClick={handleDisconnect}
+                    className="text-xs text-muted transition-colors hover:text-red-400"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Featured prompts — horizontal scroll on mobile, grid on desktop */}
+            <div className="w-full max-w-6xl">
+              {/* Mobile: horizontal snap scroll */}
+              <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-4 md:hidden">
+                {FEATURED_PROMPTS.map((card) => (
+                  <div key={card.prompt} className="w-[85vw] flex-shrink-0 snap-center">
+                    <PromptCardButton
+                      card={card}
+                      disabled={cardsDisabled}
+                      onClick={() => openChatWithPrompt(card.prompt)}
                     />
-                  </svg>
-                  Connect to Sentry
-                </button>
-              )}
-            </div>
-
-            {/* Input bar */}
-            <form
-              onSubmit={handleLandingSubmit}
-              className="mb-10 flex w-full max-w-2xl items-center gap-3 md:mb-14"
-            >
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                disabled={!isConnected || isBusy}
-                placeholder={
-                  isConnected
-                    ? isBusy
-                      ? "Waiting for response..."
-                      : "Ask Sentry anything..."
-                    : "Connect to Sentry first..."
-                }
-                className="flex-1 rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground placeholder-muted outline-none transition-colors focus:border-accent-dim disabled:opacity-50"
-              />
-              <button
-                type="submit"
-                disabled={!isConnected || !input.trim() || isBusy}
-                className="rounded-lg bg-accent-dim px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-accent disabled:opacity-40 disabled:hover:bg-accent-dim"
-              >
-                Send
-              </button>
-            </form>
-
-            {/* Featured prompts */}
-            <div className="grid w-full max-w-6xl grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4 lg:grid-cols-5">
-              {FEATURED_PROMPTS.map((card) => (
-                <PromptCardButton
-                  key={card.prompt}
-                  card={card}
-                  disabled={cardsDisabled}
-                  onClick={() => openChatWithPrompt(card.prompt)}
-                />
-              ))}
+                  </div>
+                ))}
+              </div>
+              {/* Desktop: grid */}
+              <div className="hidden gap-4 md:grid md:grid-cols-3 lg:grid-cols-5">
+                {FEATURED_PROMPTS.map((card) => (
+                  <PromptCardButton
+                    key={card.prompt}
+                    card={card}
+                    disabled={cardsDisabled}
+                    onClick={() => openChatWithPrompt(card.prompt)}
+                  />
+                ))}
+              </div>
             </div>
           </div>
 
@@ -643,12 +668,24 @@ export default function Home() {
         {/* =========================================================== */}
         {/* Second page — prompt library                                 */}
         {/* =========================================================== */}
-        <div className="flex min-h-screen snap-start flex-col items-center justify-center px-4 md:px-6">
+        <div className="flex min-h-screen snap-start flex-col items-center px-4 py-12 md:justify-center md:px-6 md:py-0">
           <div className="w-full max-w-6xl">
             <h2 className="mb-6 text-sm font-medium uppercase tracking-widest text-muted md:mb-8">
               Prompt Library
             </h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 md:gap-4 lg:grid-cols-5">
+            {/* Mobile: vertical card list */}
+            <div className="flex flex-col gap-3 md:hidden">
+              {MORE_PROMPTS.map((card) => (
+                <PromptCardButton
+                  key={card.prompt}
+                  card={card}
+                  disabled={cardsDisabled}
+                  onClick={() => openChatWithPrompt(card.prompt)}
+                />
+              ))}
+            </div>
+            {/* Desktop: grid */}
+            <div className="hidden gap-4 md:grid md:grid-cols-3 lg:grid-cols-5">
               {MORE_PROMPTS.map((card) => (
                 <PromptCardButton
                   key={card.prompt}
@@ -946,7 +983,7 @@ function PromptCardButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="group flex min-h-[6rem] flex-col justify-between rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent-dim/50 hover:bg-card-hover disabled:pointer-events-none disabled:opacity-40 md:min-h-[8rem] md:p-6"
+      className="group flex w-full min-h-[6rem] flex-col justify-between rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent-dim/50 hover:bg-card-hover disabled:pointer-events-none disabled:opacity-40 md:min-h-[8rem] md:p-6"
     >
       <p className="mb-2 text-sm leading-snug text-foreground group-hover:text-accent md:mb-3 md:text-base">
         {card.prompt}
