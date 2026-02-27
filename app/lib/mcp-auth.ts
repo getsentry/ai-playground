@@ -16,6 +16,7 @@ import {
   discoverOAuthMetadata,
   startAuthorization,
   exchangeAuthorization,
+  refreshAuthorization,
   registerClient,
 } from "@modelcontextprotocol/sdk/client/auth.js";
 
@@ -39,6 +40,7 @@ interface ClientRegistration {
 
 export interface SessionData {
   tokens?: OAuthTokens;
+  tokenObtainedAt?: number; // epoch ms — when tokens were last obtained/refreshed
   codeVerifier?: string;
   serverUrl: string;
   clientRegistration?: ClientRegistration;
@@ -229,6 +231,56 @@ export async function handleOAuthCallback(
   return {
     ...session,
     tokens: tokens as OAuthTokens,
+    tokenObtainedAt: Date.now(),
     codeVerifier: undefined, // consumed
   };
+}
+
+/**
+ * Refresh the access token using the refresh_token grant.
+ * Returns an updated session with new tokens, or null if refresh fails.
+ */
+export async function refreshTokens(
+  session: SessionData
+): Promise<SessionData | null> {
+  if (!session.tokens?.refresh_token || !session.clientRegistration) {
+    return null;
+  }
+
+  try {
+    const serverUrl = new URL(session.serverUrl);
+    const metadata = await discoverOAuthMetadata(serverUrl);
+    if (!metadata) return null;
+
+    const tokens = await refreshAuthorization(serverUrl, {
+      metadata,
+      clientInformation: {
+        ...session.clientRegistration,
+        redirect_uris: session.clientRegistration.redirect_uris,
+        client_name: "Sentry AI Playground",
+        token_endpoint_auth_method: "none",
+      },
+      refreshToken: session.tokens.refresh_token,
+    });
+
+    return {
+      ...session,
+      tokens: tokens as OAuthTokens,
+      tokenObtainedAt: Date.now(),
+    };
+  } catch (error) {
+    console.error("Token refresh failed:", error);
+    return null;
+  }
+}
+
+/**
+ * Check if the access token is expired or about to expire (within 60s buffer).
+ */
+export function isTokenExpired(session: SessionData): boolean {
+  if (!session.tokens || !session.tokenObtainedAt) return true;
+  if (!session.tokens.expires_in) return false; // no expiry info, assume valid
+  const expiresAt = session.tokenObtainedAt + session.tokens.expires_in * 1000;
+  const bufferMs = 60_000; // refresh 60s before expiry
+  return Date.now() >= expiresAt - bufferMs;
 }

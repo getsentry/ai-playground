@@ -7,7 +7,13 @@ import {
 import { anthropic } from "@ai-sdk/anthropic";
 import { createMCPClient, type MCPClient } from "@ai-sdk/mcp";
 import { cookies } from "next/headers";
-import { decryptSession, COOKIE_NAME } from "@/app/lib/mcp-auth";
+import {
+  decryptSession,
+  encryptSession,
+  isTokenExpired,
+  refreshTokens,
+  COOKIE_NAME,
+} from "@/app/lib/mcp-auth";
 import * as Sentry from "@sentry/nextjs";
 
 export const maxDuration = 60;
@@ -21,7 +27,7 @@ export async function POST(req: Request) {
     // Read session from encrypted cookie
     const cookieStore = await cookies();
     const encrypted = cookieStore.get(COOKIE_NAME)?.value;
-    const session = encrypted ? await decryptSession(encrypted) : null;
+    let session = encrypted ? await decryptSession(encrypted) : null;
 
     if (!session?.tokens?.access_token) {
       return new Response(
@@ -30,8 +36,31 @@ export async function POST(req: Request) {
       );
     }
 
+    // Refresh token if expired or about to expire
+    if (isTokenExpired(session)) {
+      const refreshed = await refreshTokens(session);
+      if (refreshed) {
+        session = refreshed;
+        // Persist the refreshed tokens back to the cookie
+        const newEncrypted = await encryptSession(session);
+        cookieStore.set(COOKIE_NAME, newEncrypted, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          maxAge: 60 * 60 * 24,
+          path: "/",
+        });
+      } else {
+        // Refresh failed — user needs to re-authenticate
+        return new Response(
+          JSON.stringify({ error: "Session expired. Please reconnect to Sentry." }),
+          { status: 401, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // Link all AI spans in this request to the user's conversation
-    Sentry.setConversationId(session.tokens.access_token.slice(-16));
+    Sentry.setConversationId(session.tokens!.access_token.slice(-16));
 
     const sentryMcpUrl =
       process.env.SENTRY_MCP_URL || "https://mcp.sentry.dev/mcp";
@@ -42,7 +71,7 @@ export async function POST(req: Request) {
         type: "http",
         url: sentryMcpUrl,
         headers: {
-          Authorization: `Bearer ${session.tokens.access_token}`,
+          Authorization: `Bearer ${session.tokens!.access_token}`,
         },
       },
     });
