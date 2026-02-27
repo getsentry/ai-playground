@@ -77,12 +77,17 @@ export async function GET(request: NextRequest) {
   } catch(e) {}
 
   if (success) {
-    // Try to close the window (works for desktop popups).
-    // If still open after a short delay, redirect back to the app (mobile / full tab).
-    setTimeout(function() {
-      window.close();
-      setTimeout(function() { window.location.href = "${appUrl}"; }, 500);
-    }, 800);
+    var isMobile = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isMobile) {
+      // Mobile: always redirect back to the app (window.close kills the browser view)
+      setTimeout(function() { window.location.href = "${appUrl}"; }, 800);
+    } else {
+      // Desktop: close popup, fallback to redirect if close fails
+      setTimeout(function() {
+        window.close();
+        setTimeout(function() { window.location.href = "${appUrl}"; }, 500);
+      }, 800);
+    }
   }
 })();
 </script>
