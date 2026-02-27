@@ -621,7 +621,7 @@ export default function Home() {
               {/* Mobile: horizontal snap scroll */}
               <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-4 md:hidden">
                 {FEATURED_PROMPTS.map((card) => (
-                  <div key={card.prompt} className="w-[85vw] flex-shrink-0 snap-center">
+                  <div key={card.prompt} className="w-[78vw] flex-shrink-0 snap-center">
                     <PromptCardButton
                       card={card}
                       disabled={cardsDisabled}
@@ -983,9 +983,9 @@ function PromptCardButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="group flex w-full min-h-[6rem] flex-col justify-between rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent-dim/50 hover:bg-card-hover disabled:pointer-events-none disabled:opacity-40 md:min-h-[8rem] md:p-6"
+      className="group flex w-full min-h-[8rem] flex-col justify-between rounded-lg border border-border bg-card p-5 text-left transition-all hover:border-accent-dim/50 hover:bg-card-hover disabled:pointer-events-none disabled:opacity-40 md:min-h-[8rem] md:p-6"
     >
-      <p className="mb-2 text-sm leading-snug text-foreground group-hover:text-accent md:mb-3 md:text-base">
+      <p className="mb-2 text-base leading-snug text-foreground group-hover:text-accent md:mb-3 md:text-base">
         {card.prompt}
       </p>
       {card.docUrl && (

@@ -56,17 +56,16 @@ export async function GET(request: NextRequest) {
   const html = `<!DOCTYPE html>
 <html><head><title>Connecting...</title></head>
 <body style="background:#0a0a0a;color:#e0e0e0;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
-<p id="status">${success ? "Connected! This window will close..." : "Connection failed. You can close this window."}</p>
+<p id="status">${success ? "Connected! Returning to app..." : "Connection failed. You can close this window."}</p>
 <script>
 (function() {
   var success = ${success};
-  var sent = false;
+  var isPopup = !!window.opener && !window.opener.closed;
 
   // Strategy 1: postMessage to opener (works if opener survived redirects)
-  if (window.opener && !window.opener.closed) {
+  if (isPopup) {
     try {
       window.opener.postMessage({ type: "sentry-oauth-result", success: success }, "${appUrl}");
-      sent = true;
     } catch(e) {}
   }
 
@@ -74,12 +73,17 @@ export async function GET(request: NextRequest) {
   try {
     var bc = new BroadcastChannel("sentry-oauth");
     bc.postMessage({ type: "sentry-oauth-result", success: success });
-    sent = true;
     setTimeout(function() { bc.close(); }, 1000);
   } catch(e) {}
 
   if (success) {
-    setTimeout(function() { window.close(); }, 800);
+    if (isPopup) {
+      // Desktop popup: close the window
+      setTimeout(function() { window.close(); }, 800);
+    } else {
+      // Mobile / full tab: redirect back to the app
+      setTimeout(function() { window.location.href = "${appUrl}"; }, 800);
+    }
   }
 })();
 </script>
