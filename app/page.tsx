@@ -46,11 +46,11 @@ interface PromptCard {
 const FEATURED_PROMPTS: PromptCard[] = [
   {
     prompt: "Use Seer to find the 5 most recent issues and fix them",
-    docUrl: "https://docs.sentry.io/product/issues/issue-details/seer/",
+    docUrl: "https://docs.sentry.io/product/ai-in-sentry/seer/root-cause-analysis/",
   },
   {
     prompt: "Show me the slowest database calls in my projects",
-    docUrl: "https://docs.sentry.io/product/performance/queries/",
+    docUrl: "https://docs.sentry.io/product/insights/backend/queries/",
   },
   {
     prompt: "Which transactions have the worst performance this week?",
@@ -62,7 +62,7 @@ const FEATURED_PROMPTS: PromptCard[] = [
   },
   {
     prompt: "Find poor AI Model performance across my projects",
-    docUrl: "https://docs.sentry.io/product/insights/llm-monitoring/",
+    docUrl: "https://docs.sentry.io/ai/monitoring/",
   },
 ];
 
@@ -70,7 +70,7 @@ const MORE_PROMPTS: PromptCard[] = [
   {
     prompt:
       "Use Seer to find the root cause of the most frequent error in my project",
-    docUrl: "https://docs.sentry.io/product/issues/issue-details/seer/",
+    docUrl: "https://docs.sentry.io/product/ai-in-sentry/seer/root-cause-analysis/",
   },
   {
     prompt: "Are there any issues that keep regressing across releases?",
@@ -103,7 +103,7 @@ const MORE_PROMPTS: PromptCard[] = [
   },
   {
     prompt: "How are my Core Web Vitals? Any pages with poor LCP or CLS?",
-    docUrl: "https://docs.sentry.io/product/performance/web-vitals/",
+    docUrl: "https://docs.sentry.io/product/insights/frontend/web-vitals/",
   },
   {
     prompt: "Which endpoints have the highest error rate this week?",
