@@ -478,11 +478,31 @@ export default function Home() {
         className="relative z-10 flex min-w-0 flex-1 snap-y snap-mandatory flex-col overflow-y-auto scroll-smooth transition-all duration-350 ease-in-out"
       >
         {/* Top bar with chat toggle */}
-        <header className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 md:px-6 md:py-4">
+        <header className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 md:px-6 md:py-4 relative">
           <div className="flex items-center gap-2">
             <img src="/sentryglyph.png" alt="Sentry" className="h-6 w-6" />
             <span className="text-base font-medium text-foreground font-mono">Sentry AI Playground</span>
           </div>
+          <nav className="absolute inset-x-0 hidden items-center justify-center gap-2 pointer-events-none md:flex">
+            {[
+              { label: "CLI", href: "https://cli.sentry.dev" },
+              { label: "MCP", href: "https://mcp.sentry.dev" },
+              { label: "AI Docs", href: "https://docs.sentry.io/ai" },
+              { label: "Skills", href: "https://github.com/getsentry/sentry-agent-skills" },
+              { label: "dotagents", href: "https://dotagents.sentry.dev" },
+            ].map((link) => (
+              <a
+                key={link.label}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pointer-events-auto rounded-md px-3 py-1.5 text-sm font-medium text-muted transition-colors hover:bg-card-hover hover:text-foreground"
+              >
+                {link.label}
+              </a>
+            ))}
+          </nav>
+          <div className="flex items-center">
           {isConnected && (
             <button
               onClick={toggleChat}
@@ -503,6 +523,7 @@ export default function Home() {
               </svg>
             </button>
           )}
+          </div>
         </header>
 
         {/* =========================================================== */}
@@ -510,10 +531,10 @@ export default function Home() {
         {/* =========================================================== */}
         <div className="flex min-h-[calc(100vh-3.5rem)] snap-start flex-col items-center px-4 md:px-6">
           <div className="flex w-full max-w-6xl flex-1 flex-col items-center pt-[15vh] md:justify-center md:pt-0">
-            <h1 className="mb-4 text-center text-4xl font-bold tracking-tight text-foreground sm:text-6xl md:text-7xl lg:text-8xl">
+            <h1 className="mb-4 text-center text-4xl font-bold tracking-tight text-foreground sm:text-6xl md:text-5xl lg:text-6xl xl:text-7xl 2xl:text-8xl">
               Talk Sentry to me<span className="text-accent">.</span>
             </h1>
-            <h2 className="mb-6 max-w-4xl text-center text-base text-muted sm:text-lg md:mb-8 md:text-xl lg:text-2xl">
+            <h2 className="mb-6 max-w-4xl text-center text-base text-muted sm:text-lg md:mb-8 md:text-lg lg:text-xl xl:text-2xl">
               Sentry knows a lot about debugging your applications. Seriously. It&apos;s a lot. Ask us about it.
             </h2>
 
@@ -601,7 +622,7 @@ export default function Home() {
                     Send
                   </button>
                 </form>
-                <div className="mt-3 flex items-center gap-3">
+                <div className="mt-3 flex items-center gap-3 pl-1">
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-emerald-500" />
                     <span className="text-xs text-emerald-400">Connected to Sentry</span>
@@ -645,11 +666,11 @@ export default function Home() {
           </div>
 
           {/* Scroll-down arrow */}
-          <div className="flex flex-col items-center gap-1 pb-6 pt-4 text-muted/60">
-            <span className="text-xs">more prompts</span>
+          <div className="flex flex-col items-center gap-2 pb-6 pt-4 text-foreground">
+            <span className="text-sm font-medium tracking-wide uppercase">more prompts</span>
             <svg
-              width="20"
-              height="20"
+              width="24"
+              height="24"
               viewBox="0 0 20 20"
               fill="none"
               className="bounce-arrow"
@@ -657,7 +678,7 @@ export default function Home() {
               <path
                 d="M10 4v12m0 0l-4-4m4 4l4-4"
                 stroke="currentColor"
-                strokeWidth="1.5"
+                strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
@@ -704,10 +725,11 @@ export default function Home() {
       {/* Hidden on mobile (md: and up only)                             */}
       {/* ============================================================= */}
       <div
-        style={{ width: isChatOpen ? "42rem" : "0" }}
-        className="relative z-10 hidden h-full flex-shrink-0 flex-col overflow-hidden border-l border-border bg-background transition-[width] duration-350 ease-in-out md:flex"
+        className={`relative z-10 hidden h-full flex-shrink-0 flex-col overflow-hidden border-l border-border bg-background transition-[width] duration-350 ease-in-out md:flex ${
+          isChatOpen ? "w-[24rem] xl:w-[28rem] 2xl:w-[34rem]" : "w-0"
+        }`}
       >
-        <div className="flex h-full w-[42rem] flex-col">
+        <div className="flex h-full min-w-[24rem] xl:min-w-[28rem] 2xl:min-w-[34rem] flex-col">
           {/* Header */}
           <header className="flex items-center justify-between border-b border-border px-5 py-4">
             <button
@@ -979,13 +1001,39 @@ function PromptCardButton({
   disabled: boolean;
   onClick: () => void;
 }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(card.prompt);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className="group flex w-full min-h-[8rem] flex-col justify-between rounded-lg border border-border bg-card p-5 text-left transition-all hover:border-accent-dim/50 hover:bg-card-hover disabled:pointer-events-none disabled:opacity-40 md:min-h-[8rem] md:p-6"
+      className="group relative flex w-full aspect-square md:aspect-auto md:min-h-[8rem] flex-col justify-between rounded-lg border border-border bg-card p-5 text-left transition-all hover:border-accent-dim/50 hover:bg-card-hover disabled:pointer-events-none disabled:opacity-40 md:p-6"
     >
-      <p className="mb-2 text-base leading-snug text-foreground group-hover:text-accent md:mb-3 md:text-base">
+      {/* Copy button */}
+      <span
+        onClick={handleCopy}
+        className="absolute top-2.5 right-2.5 flex h-7 w-7 items-center justify-center rounded-md text-muted/0 transition-all group-hover:text-muted hover:!text-foreground hover:bg-card-hover"
+        title="Copy prompt"
+      >
+        {copied ? (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+        )}
+      </span>
+      <p className="mb-2 text-base leading-snug text-foreground group-hover:text-accent md:mb-3 md:text-base pr-6">
         {card.prompt}
       </p>
       {card.docUrl && (
