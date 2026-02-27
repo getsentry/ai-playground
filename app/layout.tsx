@@ -9,7 +9,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Talk Sentry to me",
-  description: "Chat with Sentry through MCP",
+  description: "Sentry knows a lot about debugging. Ask us about it.",
 };
 
 export default function RootLayout({
