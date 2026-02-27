@@ -77,13 +77,12 @@ export async function GET(request: NextRequest) {
   } catch(e) {}
 
   if (success) {
-    if (isPopup) {
-      // Desktop popup: close the window
-      setTimeout(function() { window.close(); }, 800);
-    } else {
-      // Mobile / full tab: redirect back to the app
-      setTimeout(function() { window.location.href = "${appUrl}"; }, 800);
-    }
+    // Try to close the window (works for desktop popups).
+    // If still open after a short delay, redirect back to the app (mobile / full tab).
+    setTimeout(function() {
+      window.close();
+      setTimeout(function() { window.location.href = "${appUrl}"; }, 500);
+    }, 800);
   }
 })();
 </script>
