@@ -652,7 +652,7 @@ export default function Home() {
                 ))}
               </div>
               {/* Desktop: grid */}
-              <div className="hidden gap-4 md:grid md:grid-cols-3 lg:grid-cols-5">
+              <div className="hidden gap-4 md:grid md:grid-cols-3 lg:grid-cols-5 auto-rows-fr">
                 {FEATURED_PROMPTS.map((card) => (
                   <PromptCardButton
                     key={card.prompt}
@@ -706,7 +706,7 @@ export default function Home() {
               ))}
             </div>
             {/* Desktop: grid */}
-            <div className="hidden gap-4 md:grid md:grid-cols-3 lg:grid-cols-5">
+            <div className="hidden gap-4 md:grid md:grid-cols-3 lg:grid-cols-5 auto-rows-fr">
               {MORE_PROMPTS.map((card) => (
                 <PromptCardButton
                   key={card.prompt}
@@ -1014,7 +1014,7 @@ function PromptCardButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="group relative flex w-full aspect-square md:aspect-auto md:min-h-[8rem] flex-col justify-between rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent-dim/50 hover:bg-card-hover disabled:pointer-events-none disabled:opacity-40 md:p-6"
+      className="group relative flex w-full aspect-square md:aspect-auto md:h-[10rem] flex-col rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent-dim/50 hover:bg-card-hover disabled:pointer-events-none disabled:opacity-40 md:p-5"
     >
       {/* Copy button */}
       <span
@@ -1033,16 +1033,18 @@ function PromptCardButton({
           </svg>
         )}
       </span>
-      <p className="mb-2 text-lg leading-snug text-foreground group-hover:text-accent md:mb-3 md:text-base pr-6">
-        {card.prompt}
-      </p>
+      <div className="flex-1 overflow-hidden pr-6">
+        <p className="text-lg leading-snug text-foreground group-hover:text-accent md:text-sm">
+          {card.prompt}
+        </p>
+      </div>
       {card.docUrl && (
         <span
           onClick={(e) => {
             e.stopPropagation();
             window.open(card.docUrl, "_blank");
           }}
-          className="mt-auto text-xs text-accent/60 transition-colors hover:text-accent"
+          className="mt-2 flex-shrink-0 text-xs text-accent/60 transition-colors hover:text-accent"
         >
           docs &rarr;
         </span>
