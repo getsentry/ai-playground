@@ -642,7 +642,7 @@ export default function Home() {
               {/* Mobile: horizontal snap scroll */}
               <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-4 md:hidden">
                 {FEATURED_PROMPTS.map((card) => (
-                  <div key={card.prompt} className="w-[78vw] flex-shrink-0 snap-center">
+                  <div key={card.prompt} className="w-[40vw] flex-shrink-0 snap-center">
                     <PromptCardButton
                       card={card}
                       disabled={cardsDisabled}
@@ -689,13 +689,13 @@ export default function Home() {
         {/* =========================================================== */}
         {/* Second page — prompt library                                 */}
         {/* =========================================================== */}
-        <div className="flex min-h-screen snap-start flex-col items-center px-4 py-12 md:justify-center md:px-6 md:py-0">
-          <div className="w-full max-w-6xl">
+        <div className="flex snap-start flex-col items-center px-4 py-12 md:min-h-screen md:justify-center md:px-6 md:py-0">
+          <div className="w-full max-w-6xl pb-12 md:pb-0">
             <h2 className="mb-6 text-sm font-medium uppercase tracking-widest text-muted md:mb-8">
               Prompt Library
             </h2>
-            {/* Mobile: vertical card list */}
-            <div className="flex flex-col gap-3 md:hidden">
+            {/* Mobile: vertical card list — rectangle cards */}
+            <div className="flex flex-col gap-3 md:hidden [&_button]:aspect-auto [&_button]:min-h-[5rem]">
               {MORE_PROMPTS.map((card) => (
                 <PromptCardButton
                   key={card.prompt}
@@ -1014,7 +1014,7 @@ function PromptCardButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="group relative flex w-full aspect-square md:aspect-auto md:min-h-[8rem] flex-col justify-between rounded-lg border border-border bg-card p-5 text-left transition-all hover:border-accent-dim/50 hover:bg-card-hover disabled:pointer-events-none disabled:opacity-40 md:p-6"
+      className="group relative flex w-full aspect-square md:aspect-auto md:min-h-[8rem] flex-col justify-between rounded-lg border border-border bg-card p-4 text-left transition-all hover:border-accent-dim/50 hover:bg-card-hover disabled:pointer-events-none disabled:opacity-40 md:p-6"
     >
       {/* Copy button */}
       <span
@@ -1033,7 +1033,7 @@ function PromptCardButton({
           </svg>
         )}
       </span>
-      <p className="mb-2 text-base leading-snug text-foreground group-hover:text-accent md:mb-3 md:text-base pr-6">
+      <p className="mb-2 text-lg leading-snug text-foreground group-hover:text-accent md:mb-3 md:text-base pr-6">
         {card.prompt}
       </p>
       {card.docUrl && (
